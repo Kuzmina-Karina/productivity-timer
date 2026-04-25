@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-scripts:*)",
+      "Bash(zip -r /Users/nastagetman/proga/todo-canvas-app/scenario-example.zip .)",
+      "Bash(zip -r /tmp/scenario-example.zip . -x '*.DS_Store')"
+    ]
+  }
+}

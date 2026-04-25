@@ -1,184 +1,176 @@
-import React from 'react';
-import { createAssistant, createSmartappDebugger } from '@salutejs/client';
+import React from "react";
+import { createAssistant, createSmartappDebugger } from "@salutejs/client";
 
-import './App.css';
-import { TaskList } from './pages/TaskList';
+import "./App.css";
+import { Timer } from "./components/Timer";
 
-const initializeAssistant = (getState /*: any*/, getRecoveryState) => {
-  if (process.env.NODE_ENV === 'development') {
+// --- Инициализация ассистента Salute ---
+const initializeAssistant = (getState) => {
+  if (process.env.NODE_ENV === "development") {
     return createSmartappDebugger({
-      token: process.env.REACT_APP_TOKEN ?? '',
+      token: process.env.REACT_APP_TOKEN ?? "",
       initPhrase: `Запусти ${process.env.REACT_APP_SMARTAPP}`,
-      getState,                                           
-      // getRecoveryState: getState,                                           
+      getState,
       nativePanel: {
-        defaultText: 'ччччччч',
+        defaultText: "",
         screenshotMode: false,
         tabIndex: -1,
-    },
+      },
     });
-  } else {
-  return createAssistant({ getState });
   }
+  return createAssistant({ getState });
 };
 
 export class App extends React.Component {
   constructor(props) {
     super(props);
-    console.log('constructor');
 
+    // Единственное состояние — данные активного таймера (или null)
     this.state = {
-      notes: [{ id: Math.random().toString(36).substring(7), title: 'тест' }],
+      timer: null,
     };
 
     this.assistant = initializeAssistant(() => this.getStateForAssistant());
 
-    this.assistant.on('data', (event /*: any*/) => {
-      console.log(`assistant.on(data)`, event);
-      if (event.type === 'character') {
-        console.log(`assistant.on(data): character: "${event?.character?.id}"`);
-      } else if (event.type === 'insets') {
-        console.log(`assistant.on(data): insets`);
-      } else {
-        const { action } = event;
-        this.dispatchAssistantAction(action);
+    // --- Обработка входящих событий от ассистента ---
+    this.assistant.on("data", (event) => {
+      console.log("assistant.on(data)", event);
+      if (event.type === "character" || event.type === "insets") return;
+      const { action } = event;
+      if (action) this.dispatchAssistantAction(action);
+    });
+
+    this.assistant.on("start", (event) => {
+      console.log("assistant.on(start)", event);
+    });
+
+    this.assistant.on("error", (event) => {
+      console.log("assistant.on(error)", event);
+    });
+
+    // Подавляем ошибку applicationId из @salutejs/client (баг библиотеки),
+    // чтобы CRA error overlay не блокировал UI
+    window.addEventListener("error", (e) => {
+      if (e.error?.message?.includes("applicationId")) {
+        console.warn("Suppressed @salutejs/client error:", e.error.message);
+        e.preventDefault();
       }
     });
-
-    this.assistant.on('start', (event) => {
-      let initialData = this.assistant.getInitialData();
-
-      console.log(`assistant.on(start)`, event, initialData);
-    });
-
-    this.assistant.on('command', (event) => {
-      console.log(`assistant.on(command)`, event);
-    });
-
-    this.assistant.on('error', (event) => {
-      console.log(`assistant.on(error)`, event);
-    });
-
-    this.assistant.on('tts', (event) => {
-      console.log(`assistant.on(tts)`, event);
+    window.addEventListener("unhandledrejection", (e) => {
+      if (e.reason?.message?.includes("applicationId")) {
+        console.warn("Suppressed @salutejs/client rejection:", e.reason.message);
+        e.preventDefault();
+      }
     });
   }
 
-  componentDidMount() {
-    console.log('componentDidMount');
-  }
-
+  // --- Состояние для ассистента (item_selector) ---
   getStateForAssistant() {
-    console.log('getStateForAssistant: this.state:', this.state);
-    const state = {
+    return {
       item_selector: {
-        items: this.state.notes.map(({ id, title }, index) => ({
-          number: index + 1,
-          id,
-          title,
-        })),
+        items: [],
         ignored_words: [
-          'добавить','установить','запиши','поставь','закинь','напомнить', // addNote.sc
-          'удалить', 'удали',  // deleteNote.sc
-          'выполни', 'выполнил', 'сделал' // выполнил|сделал
+          "таймер", "запусти", "поставь", "установи", "включи", "заведи",
+          "останови", "отмени", "выключи", "сбрось", "стоп", "хватит",
+          "минут", "минуты", "минуту", "секунд", "секунды", "секунду",
         ],
       },
     };
-    console.log('getStateForAssistant: state:', state);
-    return state;
   }
 
+  // --- Диспетчер голосовых команд ---
   dispatchAssistantAction(action) {
-    console.log('dispatchAssistantAction', action);
-    if (action) {
-      switch (action.type) {
-        case 'add_note':
-          return this.add_note(action);
-
-        case 'done_note':
-          return this.done_note(action);
-
-        case 'delete_note':
-          return this.delete_note(action);
-
-        default:
-          throw new Error();
-      }
+    console.log("dispatchAssistantAction", action);
+    switch (action.type) {
+      case "set_timer":
+        return this.setTimer(action);
+      case "cancel_timer":
+        return this.cancelTimer();
+      default:
+        console.log("unknown action:", action.type);
     }
   }
 
-  add_note(action) {
-    console.log('add_note', action);
+  // --- Запуск таймера ---
+  setTimer(action) {
+    console.log("setTimer", action);
+    const duration = action.duration || 60;
     this.setState({
-      notes: [
-        ...this.state.notes,
-        {
-          id: Math.random().toString(36).substring(7),
-          title: action.note,
-          completed: false,
-        },
-      ],
-    });
-  }
-
-  done_note(action) {
-    console.log('done_note', action);
-    this.setState({
-      notes: this.state.notes.map((note) =>
-        note.id === action.id ? { ...note, completed: !note.completed } : note
-      ),
-    });
-  }
-
-  _send_action_value(action_id, value) {
-    const data = {
-      action: {
-        action_id: action_id,
-        parameters: {
-          // значение поля parameters может быть любым, но должно соответствовать серверной логике
-          value: value, // см.файл src/sc/noteDone.sc смартаппа в Studio Code
-        },
+      timer: {
+        duration,
+        startedAt: Date.now(),
       },
-    };
-    const unsubscribe = this.assistant.sendData(data, (data) => {
-      // функция, вызываемая, если на sendData() был отправлен ответ
-      const { type, payload } = data;
-      console.log('sendData onData:', type, payload);
-      unsubscribe();
     });
   }
 
-  play_done_note(id) {
-    const completed = this.state.notes.find(({ id }) => id)?.completed;
-    if (!completed) {
-      const texts = ['Молодец!', 'Красавчик!', 'Супер!'];
-      const idx = (Math.random() * texts.length) | 0;
-      this._send_action_value('done', texts[idx]);
+  // --- Остановка таймера вручную или голосом ---
+  cancelTimer() {
+    console.log("cancelTimer");
+    this.setState({ timer: null });
+  }
+
+  // --- Таймер истёк: звук + голосовой ответ + сброс ---
+  timerEnd() {
+    console.log("timerEnd");
+    this.playTimerSound();
+    this.sendToAssistant("timer_done", "Время вышло!");
+    this.setState({ timer: null });
+  }
+
+  // --- Отправка server_action ассистенту ---
+  sendToAssistant(actionId, value) {
+    try {
+      const data = {
+        action: {
+          action_id: actionId,
+          parameters: { value },
+        },
+      };
+      const unsubscribe = this.assistant.sendData(data, (resp) => {
+        console.log("sendData callback:", resp);
+        unsubscribe();
+      });
+    } catch (e) {
+      console.warn("sendToAssistant error:", e);
     }
   }
 
-  delete_note(action) {
-    console.log('delete_note', action);
-    this.setState({
-      notes: this.state.notes.filter(({ id }) => id !== action.id),
-    });
+  // --- Звуковой сигнал через Web Audio API (без внешних файлов) ---
+  playTimerSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const beep = (freq, start, dur) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.4, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
+        osc.start(start);
+        osc.stop(start + dur);
+      };
+      // Три коротких сигнала: бип — бип — бииип
+      const t = ctx.currentTime;
+      beep(880, t, 0.2);
+      beep(880, t + 0.3, 0.2);
+      beep(1100, t + 0.6, 0.5);
+    } catch (e) {
+      console.warn("playTimerSound error:", e);
+    }
   }
 
   render() {
-    console.log('render');
     return (
-      <>
-        <TaskList
-          items={this.state.notes}
-          onAdd={(note) => {
-            this.add_note({ type: 'add_note', note });
-          }}
-          onDone={(note) => {
-            this.play_done_note(note.id);
-            this.done_note({ type: 'done_note', id: note.id });
-          }}
+      <div className="app">
+        <Timer
+          timer={this.state.timer}
+          onTimerEnd={() => this.timerEnd()}
+          onTimerCancel={() => this.cancelTimer()}
+          onTimerStart={(seconds) => this.setTimer({ duration: seconds })}
         />
-      </>
+      </div>
     );
   }
 }
