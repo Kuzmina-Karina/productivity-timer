@@ -9,7 +9,9 @@
       "Bash(ls:*)",
       "Bash(zip -r /Users/nastagetman/proga/todo-canvas-app/scenario-import.zip . -x \".*\")",
       "Bash(unzip -l /Users/nastagetman/proga/todo-canvas-app/scenario-import.zip)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\); print\\('main:', d.get\\('main'\\)\\); print\\('exports:', list\\(d.get\\('exports',{}\\).keys\\(\\)\\)[:10]\\)\")",
+      "Bash(zip -r /Users/nastagetman/proga/todo-canvas-app/scenario-import.zip chatbot.yaml caila_import.json test/ src/ -x \"*.DS_Store\")"
     ]
   }
 }

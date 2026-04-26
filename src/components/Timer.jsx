@@ -1,86 +1,89 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
-/**
- * Компонент таймера.
- * Отображает обратный отсчёт HH:MM:SS, кнопку СТОП,
- * звуковой сигнал и уведомление при истечении.
- */
-export function Timer({ duration, isActive, onStop, onFinish }) {
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const [finished, setFinished] = useState(false);
+/* Формат HH:MM:SS */
+function fmt(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
+}
 
-  /* Формат HH:MM:SS */
-  const formatTime = useCallback((totalSeconds) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
-  }, []);
+/* Три коротких бипа через Web Audio API */
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.3, 0.6].forEach((t) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.25;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.18);
+    });
+  } catch { /* звук недоступен */ }
+}
 
-  /* Звуковой сигнал через Web Audio API — три коротких бипа */
-  const playAlarm = useCallback(() => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.25, 0.5].forEach((delay) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = 880;
-        gain.gain.value = 0.3;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.15);
-      });
-    } catch {
-      /* Звук недоступен — пропускаем */
-    }
-  }, []);
+export function Timer({ duration, active, onStop, onFinish }) {
+  const [left, setLeft] = useState(0);
+  const [done, setDone] = useState(false);
+  const endRef = useRef(0);
+  const finishCalled = useRef(false);
 
-  /* Сброс при новом запуске */
+  /* Запуск: запоминаем абсолютное время окончания */
   useEffect(() => {
-    if (isActive && duration > 0) {
-      setTimeLeft(duration);
-      setFinished(false);
+    if (active && duration > 0) {
+      endRef.current = Date.now() + duration * 1000;
+      finishCalled.current = false;
+      setLeft(duration);
+      setDone(false);
     }
-  }, [duration, isActive]);
+    if (!active) {
+      setDone(false);
+    }
+  }, [active, duration]);
 
-  /* Обратный отсчёт */
+  /* Отсчёт на основе Date.now — точен даже после фонового режима */
   useEffect(() => {
-    if (!isActive || finished) return;
+    if (!active || done) return;
 
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setFinished(true);
-          playAlarm();
-          onFinish?.();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const remaining = Math.max(0, Math.round((endRef.current - Date.now()) / 1000));
+      setLeft(remaining);
+      if (remaining <= 0 && !finishCalled.current) {
+        finishCalled.current = true;
+        setDone(true);
+        playBeep();
+        onFinish?.();
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [isActive, finished, playAlarm, onFinish]);
+    tick();
+    const id = setInterval(tick, 300);
+    return () => clearInterval(id);
+  }, [active, done, onFinish]);
 
-  /* CSS-класс дисплея */
-  const displayClass = [
-    "timer-display",
-    isActive && !finished ? "active" : "",
-    finished ? "finished" : "",
-  ].filter(Boolean).join(" ");
+  /* CSS-классы */
+  const state = done ? "done" : active ? "running" : "";
 
   return (
-    <div className="timer-wrapper">
-      <div className={displayClass}>{formatTime(timeLeft)}</div>
+    <>
+      <div className={"timer-ring " + state}>
+        <div className={"digits " + state}>{fmt(left)}</div>
+        <div className={"ring-label " + state}>
+          {done ? "завершён" : active ? "идёт отсчёт" : "ожидание"}
+        </div>
+      </div>
 
-      {finished && <div className="timer-alert">Время истекло!</div>}
+      <div className="alert-text">
+        {done ? "Время истекло!" : "\u00A0"}
+      </div>
 
-      <button className="stop-btn" disabled={!isActive} onClick={onStop}>
-        {finished ? "Сброс" : "Стоп"}
+      <button className="stop-btn" disabled={!active} onClick={onStop}>
+        Стоп
       </button>
-    </div>
+    </>
   );
 }

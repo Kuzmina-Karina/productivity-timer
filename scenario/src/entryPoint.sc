@@ -10,15 +10,16 @@ theme: /
     state: SetTimer
         intent!: /set_timer
         script:
-            var duration = $jsapi.getTimerDuration($request);
+            var text = $request.query || "";
+            var duration = $jsapi.parseTimerDuration(text);
             $temp.duration = duration;
-            $jsapi.sendSetTimer($response, duration);
+            $reactions.appendCommand({type: "smart_app_data", smart_app_data: {type: "set_timer", duration: duration}});
         a: Запускаю таймер на {{$temp.duration}} секунд.
 
     state: CancelTimer
         intent!: /cancel_timer
         script:
-            $jsapi.sendCancelTimer($response);
+            $reactions.appendCommand({type: "smart_app_data", smart_app_data: {type: "cancel_timer"}});
         a: Таймер остановлен.
 
     state: TimerDone
@@ -27,4 +28,4 @@ theme: /
 
     state: NoMatch
         event!: noMatch
-        a: Я умею только запускать и останавливать таймер. Скажите «Запусти таймер на 30 секунд».
+        a: Я умею только запускать и останавливать таймер. Скажите, например, «Таймер на 30 секунд».

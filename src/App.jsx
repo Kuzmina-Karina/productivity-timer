@@ -3,126 +3,148 @@ import { createAssistant, createSmartappDebugger } from "@salutejs/client";
 import { Timer } from "./components/Timer";
 import "./App.css";
 
-/**
- * Извлечение action из события ассистента.
- * В зависимости от версии SDK и типа команды данные приходят
- * в разных местах — проверяем все известные варианты.
- */
+/* ====================================================================
+   Извлечение action из события SDK (проверяем все варианты)
+   ==================================================================== */
 function extractAction(event) {
-  /* smart_app_data — основной формат при $response.appendCommand */
   if (event?.smart_app_data?.type) return event.smart_app_data;
-
-  /* Прямой action (старые версии SDK) */
   if (event?.action?.type) return event.action;
 
-  /* Внутри items[].command — формат ответа с несколькими командами */
   const items = event?.items || event?.payload?.items;
   if (Array.isArray(items)) {
     for (const item of items) {
-      const cmd = item?.command;
-      if (cmd?.type === "smart_app_data" && cmd?.smart_app_data?.type) {
-        return cmd.smart_app_data;
-      }
-      if (cmd?.type) return cmd;
+      if (item?.command?.smart_app_data?.type) return item.command.smart_app_data;
+      if (item?.command?.type) return item.command;
     }
   }
 
-  /* server_action */
   if (event?.server_action?.type) return event.server_action;
-
   return null;
 }
 
+/* ==================================================================== */
+
 function App() {
   const [duration, setDuration] = useState(0);
-  const [isActive, setIsActive] = useState(false);
+  const [active, setActive] = useState(false);
+  /* Уникальный ключ запуска — чтобы Timer.jsx гарантированно сбрасывался */
+  const [startKey, setStartKey] = useState(0);
   const assistantRef = useRef(null);
+  const initDone = useRef(false);
 
-  /* Отправка server_action обратно в сценарий */
-  const sendAction = useCallback((actionId) => {
-    assistantRef.current?.sendData?.({
-      action: { action_id: actionId },
-    });
+  /* Запуск таймера — единая функция для кнопок и голоса */
+  const startTimer = useCallback((seconds) => {
+    const sec = Math.max(1, Math.round(seconds));
+    setDuration(sec);
+    setActive(true);
+    setStartKey((k) => k + 1);
   }, []);
 
-  /* Обработка всех событий от ассистента */
-  const handleAssistantData = useCallback((event) => {
+  /* Остановка таймера — единая функция для кнопки и голоса */
+  const stopTimer = useCallback(() => {
+    setActive(false);
+    setDuration(0);
+    try {
+      assistantRef.current?.sendData?.({ action: { action_id: "cancel_timer" } });
+    } catch {}
+  }, []);
+
+  /* Таймер истёк — уведомляем сценарий */
+  const handleFinish = useCallback(() => {
+    try {
+      assistantRef.current?.sendData?.({ action: { action_id: "timer_done" } });
+    } catch {}
+  }, []);
+
+  /* Обработка событий от ассистента */
+  const onData = useCallback((event) => {
     const action = extractAction(event);
     if (!action?.type) return;
 
     if (action.type === "set_timer") {
-      const seconds = Math.max(1, Math.round(Number(action.duration) || 60));
-      setDuration(seconds);
-      setIsActive(true);
+      startTimer(Number(action.duration) || 60);
     }
-
     if (action.type === "cancel_timer") {
-      setIsActive(false);
+      setActive(false);
       setDuration(0);
     }
-  }, []);
+  }, [startTimer]);
 
-  /* Инициализация Salute Assistant — один раз */
+  /* Инициализация SDK */
   useEffect(() => {
-    /**
-     * getState обязан возвращать объект с app_info,
-     * иначе SDK упадёт с ошибкой "Cannot read properties of undefined (reading 'applicationId')"
-     */
-    const getState = () => ({
-      app_info: {
-        applicationId: process.env.REACT_APP_SMARTAPP || "voice-timer",
-        appversionId: "1.0.0",
-        frontendType: "WEB_APP",
-        projectId: process.env.REACT_APP_SMARTAPP || "voice-timer",
-        systemName: "voice-timer",
-        frontendEndpoint: "",
-        frontendStateId: "",
-      },
-    });
+    if (initDone.current) return;
+    initDone.current = true;
 
-    if (process.env.NODE_ENV === "development") {
-      assistantRef.current = createSmartappDebugger({
-        token: process.env.REACT_APP_TOKEN || "",
-        initPhrase: "запусти голосовой таймер",
-        getState,
-        nativePanel: { defaultText: "Скажите команду..." },
-        appInitialData: [getState()],
-      });
-    } else {
-      assistantRef.current = createAssistant({ getState });
+    const appInfo = {
+      applicationId: process.env.REACT_APP_SMARTAPP || "voice-timer",
+      appversionId: "1.0.0",
+      frontendType: "WEB_APP",
+      projectId: process.env.REACT_APP_SMARTAPP || "voice-timer",
+      systemName: "voice-timer",
+      frontendEndpoint: "",
+      frontendStateId: "",
+    };
+
+    const getState = () => ({ app_info: appInfo });
+
+    try {
+      if (process.env.NODE_ENV === "development") {
+        assistantRef.current = createSmartappDebugger({
+          token: process.env.REACT_APP_TOKEN || "",
+          initPhrase: "запусти голосовой таймер",
+          getState,
+          nativePanel: { defaultText: "Скажите команду..." },
+          appInitialData: [{ app_info: appInfo }],
+        });
+      } else {
+        assistantRef.current = createAssistant({ getState });
+      }
+
+      assistantRef.current.on("data", onData);
+    } catch (err) {
+      console.warn("[SDK]", err.message);
     }
+  }, [onData]);
 
-    assistantRef.current.on("data", handleAssistantData);
-  }, [handleAssistantData]);
-
-  /* Таймер истёк — сообщаем сценарию для голосового ответа */
-  const handleFinish = useCallback(() => {
-    sendAction("timer_done");
-  }, [sendAction]);
-
-  /* Ручная остановка кнопкой */
-  const handleStop = useCallback(() => {
-    setIsActive(false);
-    setDuration(0);
-    sendAction("cancel_timer");
-  }, [sendAction]);
+  /* Кнопки быстрого запуска */
+  const presets = [
+    { label: "10 сек", sec: 10 },
+    { label: "30 сек", sec: 30 },
+    { label: "1 мин", sec: 60 },
+    { label: "2 мин", sec: 120 },
+    { label: "5 мин", sec: 300 },
+  ];
 
   return (
     <div className="app">
-      <div className="app-title">Голосовой таймер</div>
+      <div className="header">Голосовой таймер</div>
 
       <Timer
+        key={startKey}
         duration={duration}
-        isActive={isActive}
-        onStop={handleStop}
+        active={active}
+        onStop={stopTimer}
         onFinish={handleFinish}
       />
 
-      {!isActive && (
+      {/* Кнопки быстрого запуска — видны когда таймер не активен */}
+      {!active && (
+        <div className="presets">
+          {presets.map((p) => (
+            <button
+              key={p.sec}
+              className="preset-btn"
+              onClick={() => startTimer(p.sec)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!active && (
         <div className="hint">
-          Скажите: «Запусти таймер на 30 секунд»
-          <br />
-          или «Останови таймер»
+          или скажите: «Поставь таймер на 30 секунд»
         </div>
       )}
     </div>

@@ -4,9 +4,46 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#0f0f23" />
-    <meta name="description" content="Голосовой таймер — Salute Canvas App" />
+    <meta name="theme-color" content="#0a0a1a" />
     <title>Голосовой Таймер</title>
+    <script>
+      /**
+       * КРИТИЧНО: этот код должен выполниться ДО загрузки SDK и React.
+       *
+       * 1) Инициализируем appInitialData с валидным applicationId —
+       *    без этого SDK падает при обработке событий.
+       *
+       * 2) Глобальный перехват ошибки applicationId —
+       *    это баг SDK v1.32 (строка 790 createAssistantDevOrigin.js):
+       *    event.appInfo.applicationId вызывается без проверки на undefined.
+       */
+      window.appInitialData = [{
+        app_info: {
+          applicationId: "voice-timer",
+          appversionId: "1.0.0",
+          frontendType: "WEB_APP",
+          projectId: "voice-timer",
+          systemName: "voice-timer",
+          frontendEndpoint: "",
+          frontendStateId: ""
+        }
+      }];
+
+      window.addEventListener("error", function(e) {
+        if (e && e.message && e.message.indexOf("applicationId") !== -1) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
+
+      window.addEventListener("unhandledrejection", function(e) {
+        if (e && e.reason && String(e.reason).indexOf("applicationId") !== -1) {
+          e.preventDefault();
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <noscript>Для работы приложения необходим JavaScript.</noscript>

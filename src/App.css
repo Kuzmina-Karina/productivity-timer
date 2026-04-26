@@ -1,4 +1,4 @@
-/* Главный контейнер — центрирование */
+/* ===== Корневой контейнер ===== */
 .app {
   display: flex;
   flex-direction: column;
@@ -6,99 +6,194 @@
   justify-content: center;
   min-height: 100vh;
   padding: 24px;
-  text-align: center;
-  gap: 40px;
+  background: linear-gradient(160deg, #0a0a1a 0%, #141432 50%, #0d0d20 100%);
+  position: relative;
+  overflow: hidden;
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 4px;
+/* Декоративное свечение на фоне */
+.app::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ===== Заголовок ===== */
+.header {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 5px;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.2);
+  margin-bottom: 40px;
+  z-index: 1;
 }
 
-/* Обёртка таймера */
-.timer-wrapper {
+/* ===== Кольцо таймера ===== */
+.timer-ring {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.06);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 40px;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1;
+  transition: border-color 0.6s, box-shadow 0.6s;
 }
 
-/* Крупный счётчик HH:MM:SS */
-.timer-display {
-  font-size: 80px;
-  font-weight: 700;
+.timer-ring.running {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 80px rgba(99, 102, 241, 0.1), inset 0 0 60px rgba(99, 102, 241, 0.03);
+}
+
+.timer-ring.done {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 80px rgba(239, 68, 68, 0.15);
+  animation: glow-pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+  to { box-shadow: 0 0 100px rgba(239, 68, 68, 0.25); }
+}
+
+/* ===== Цифры ===== */
+.digits {
+  font-size: 52px;
+  font-weight: 200;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
   font-variant-numeric: tabular-nums;
-  font-family: 'Courier New', 'Consolas', monospace;
   letter-spacing: 4px;
-  color: rgba(255, 255, 255, 0.25);
-  transition: color 0.3s ease;
-  line-height: 1;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color 0.4s;
+  user-select: none;
 }
 
-.timer-display.active {
+.digits.running {
   color: #ffffff;
 }
 
-.timer-display.finished {
-  color: #ff5252;
-  animation: blink 0.8s infinite alternate;
+.digits.done {
+  color: #ef4444;
+  animation: blink 0.7s infinite alternate;
 }
 
 @keyframes blink {
-  from { opacity: 1; }
   to { opacity: 0.3; }
 }
 
-/* Уведомление */
-.timer-alert {
-  font-size: 28px;
-  font-weight: 600;
-  color: #ff5252;
-  animation: pulse 1.2s infinite alternate;
-}
-
-@keyframes pulse {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0.6; transform: scale(1.05); }
-}
-
-/* Кнопка СТОП */
-.stop-btn {
-  padding: 18px 72px;
-  border: none;
-  border-radius: 64px;
-  background-color: #ff5252;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.1s ease, background-color 0.3s ease;
+/* Маленькая подпись внутри кольца */
+.ring-label {
+  font-size: 11px;
+  letter-spacing: 3px;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color 0.4s;
 }
 
-.stop-btn:hover:not(:disabled) {
-  opacity: 0.9;
+.ring-label.running {
+  color: rgba(99, 102, 241, 0.6);
 }
 
-.stop-btn:active:not(:disabled) {
+.ring-label.done {
+  color: rgba(239, 68, 68, 0.7);
+}
+
+/* ===== Уведомление «Время истекло» ===== */
+.alert-text {
+  margin-top: 24px;
+  height: 28px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ef4444;
+  letter-spacing: 1px;
+  z-index: 1;
+}
+
+/* ===== Кнопки быстрого запуска ===== */
+.presets {
+  display: flex;
+  gap: 10px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+  z-index: 1;
+}
+
+.preset-btn {
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.preset-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #ffffff;
+}
+
+.preset-btn:active {
   transform: scale(0.95);
 }
 
-.stop-btn:disabled {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.2);
-  cursor: not-allowed;
-  transform: none;
+/* ===== Кнопка СТОП ===== */
+.stop-btn {
+  margin-top: 24px;
+  width: 160px;
+  height: 48px;
+  border: none;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
+  z-index: 1;
+  font-family: inherit;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
 }
 
-/* Подсказка */
+.stop-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 28px rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
+.stop-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.stop-btn:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  cursor: not-allowed;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ===== Подсказка ===== */
 .hint {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.3);
-  max-width: 360px;
-  line-height: 1.5;
+  margin-top: 32px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.18);
+  text-align: center;
+  line-height: 2;
+  z-index: 1;
 }
