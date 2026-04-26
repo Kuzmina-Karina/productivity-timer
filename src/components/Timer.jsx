@@ -1,134 +1,86 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-export const Timer = ({ timer, onTimerEnd, onTimerCancel, onTimerStart }) => {
-  const [remaining, setRemaining] = useState(0);
+/**
+ * Компонент таймера.
+ * Отображает обратный отсчёт HH:MM:SS, кнопку СТОП,
+ * звуковой сигнал и уведомление при истечении.
+ */
+export function Timer({ duration, isActive, onStop, onFinish }) {
+  const [timeLeft, setTimeLeft] = useState(duration);
   const [finished, setFinished] = useState(false);
-  const [inputMinutes, setInputMinutes] = useState("");
-  const intervalRef = useRef(null);
-  const onTimerEndRef = useRef(onTimerEnd);
-  const prevRemainingRef = useRef(0);
 
-  // Актуальная ссылка на колбэк завершения
-  useEffect(() => {
-    onTimerEndRef.current = onTimerEnd;
-  });
+  /* Формат HH:MM:SS */
+  const formatTime = useCallback((totalSeconds) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
+  }, []);
 
-  // --- Запуск / остановка интервала при смене timer ---
-  useEffect(() => {
-    if (!timer) {
-      setRemaining(0);
-      prevRemainingRef.current = 0;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+  /* Звуковой сигнал через Web Audio API — три коротких бипа */
+  const playAlarm = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.25, 0.5].forEach((delay) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.value = 0.3;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.15);
+      });
+    } catch {
+      /* Звук недоступен — пропускаем */
     }
+  }, []);
 
-    // Инициализация обратного отсчёта
-    setRemaining(timer.duration);
-    prevRemainingRef.current = timer.duration;
-    setFinished(false);
+  /* Сброс при новом запуске */
+  useEffect(() => {
+    if (isActive && duration > 0) {
+      setTimeLeft(duration);
+      setFinished(false);
+    }
+  }, [duration, isActive]);
 
-    intervalRef.current = setInterval(() => {
-      setRemaining((prev) => {
+  /* Обратный отсчёт */
+  useEffect(() => {
+    if (!isActive || finished) return;
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+          clearInterval(interval);
+          setFinished(true);
+          playAlarm();
+          onFinish?.();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [timer]);
+    return () => clearInterval(interval);
+  }, [isActive, finished, playAlarm, onFinish]);
 
-  // --- Детекция завершения: remaining перешёл от >0 к 0 ---
-  useEffect(() => {
-    if (timer && prevRemainingRef.current > 0 && remaining === 0) {
-      setFinished(true);
-      onTimerEndRef.current();
-    }
-    prevRemainingRef.current = remaining;
-  }, [remaining, timer]);
-
-  // Автоскрытие надписи "Время истекло!" через 4 секунды
-  useEffect(() => {
-    if (!finished) return;
-    const t = setTimeout(() => setFinished(false), 4000);
-    return () => clearTimeout(t);
-  }, [finished]);
-
-  // --- Ручной запуск из формы ---
-  const handleSubmit = useCallback(
-    (e) => {
-      e.preventDefault();
-      const mins = parseFloat(inputMinutes);
-      if (!mins || mins <= 0) return;
-      onTimerStart(Math.round(mins * 60));
-      setInputMinutes("");
-    },
-    [inputMinutes, onTimerStart]
-  );
-
-  // Форматирование HH:MM:SS
-  const hours = Math.floor(remaining / 3600);
-  const minutes = Math.floor((remaining % 3600) / 60);
-  const seconds = remaining % 60;
-  const pad = (n) => String(n).padStart(2, "0");
-  const display = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-
-  const isActive = !!timer;
+  /* CSS-класс дисплея */
+  const displayClass = [
+    "timer-display",
+    isActive && !finished ? "active" : "",
+    finished ? "finished" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div className="timer-wrapper">
-      {/* Крупный счётчик */}
-      <div className={`timer-display ${isActive ? "active" : ""}`}>
-        {display}
-      </div>
+      <div className={displayClass}>{formatTime(timeLeft)}</div>
 
-      {/* Уведомление о завершении */}
-      {finished && <div className="timer-finished">Время истекло!</div>}
+      {finished && <div className="timer-alert">Время истекло!</div>}
 
-      {/* Кнопка СТОП */}
-      <button
-        className="timer-stop-btn"
-        disabled={!isActive}
-        onClick={onTimerCancel}
-      >
-        СТОП
+      <button className="stop-btn" disabled={!isActive} onClick={onStop}>
+        {finished ? "Сброс" : "Стоп"}
       </button>
-
-      {/* Ручной ввод (виден только когда таймер не активен) */}
-      {!isActive && !finished && (
-        <form className="timer-form" onSubmit={handleSubmit}>
-          <input
-            className="timer-input"
-            type="number"
-            min="0.1"
-            step="0.5"
-            placeholder="Минуты"
-            value={inputMinutes}
-            onChange={(e) => setInputMinutes(e.target.value)}
-          />
-          <button className="timer-start-btn" type="submit">
-            Запустить
-          </button>
-        </form>
-      )}
-
-      {/* Подсказка */}
-      {!isActive && !finished && (
-        <p className="timer-hint">
-          Или скажите: &laquo;Запусти таймер на 5 минут&raquo;
-        </p>
-      )}
     </div>
   );
-};
+}

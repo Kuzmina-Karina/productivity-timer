@@ -1,176 +1,132 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createAssistant, createSmartappDebugger } from "@salutejs/client";
-
-import "./App.css";
 import { Timer } from "./components/Timer";
+import "./App.css";
 
-// --- Инициализация ассистента Salute ---
-const initializeAssistant = (getState) => {
-  if (process.env.NODE_ENV === "development") {
-    return createSmartappDebugger({
-      token: process.env.REACT_APP_TOKEN ?? "",
-      initPhrase: `Запусти ${process.env.REACT_APP_SMARTAPP}`,
-      getState,
-      nativePanel: {
-        defaultText: "",
-        screenshotMode: false,
-        tabIndex: -1,
-      },
-    });
-  }
-  return createAssistant({ getState });
-};
+/**
+ * Извлечение action из события ассистента.
+ * В зависимости от версии SDK и типа команды данные приходят
+ * в разных местах — проверяем все известные варианты.
+ */
+function extractAction(event) {
+  /* smart_app_data — основной формат при $response.appendCommand */
+  if (event?.smart_app_data?.type) return event.smart_app_data;
 
-export class App extends React.Component {
-  constructor(props) {
-    super(props);
+  /* Прямой action (старые версии SDK) */
+  if (event?.action?.type) return event.action;
 
-    // Единственное состояние — данные активного таймера (или null)
-    this.state = {
-      timer: null,
-    };
-
-    this.assistant = initializeAssistant(() => this.getStateForAssistant());
-
-    // --- Обработка входящих событий от ассистента ---
-    this.assistant.on("data", (event) => {
-      console.log("assistant.on(data)", event);
-      if (event.type === "character" || event.type === "insets") return;
-      const { action } = event;
-      if (action) this.dispatchAssistantAction(action);
-    });
-
-    this.assistant.on("start", (event) => {
-      console.log("assistant.on(start)", event);
-    });
-
-    this.assistant.on("error", (event) => {
-      console.log("assistant.on(error)", event);
-    });
-
-    // Подавляем ошибку applicationId из @salutejs/client (баг библиотеки),
-    // чтобы CRA error overlay не блокировал UI
-    window.addEventListener("error", (e) => {
-      if (e.error?.message?.includes("applicationId")) {
-        console.warn("Suppressed @salutejs/client error:", e.error.message);
-        e.preventDefault();
+  /* Внутри items[].command — формат ответа с несколькими командами */
+  const items = event?.items || event?.payload?.items;
+  if (Array.isArray(items)) {
+    for (const item of items) {
+      const cmd = item?.command;
+      if (cmd?.type === "smart_app_data" && cmd?.smart_app_data?.type) {
+        return cmd.smart_app_data;
       }
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      if (e.reason?.message?.includes("applicationId")) {
-        console.warn("Suppressed @salutejs/client rejection:", e.reason.message);
-        e.preventDefault();
-      }
-    });
-  }
-
-  // --- Состояние для ассистента (item_selector) ---
-  getStateForAssistant() {
-    return {
-      item_selector: {
-        items: [],
-        ignored_words: [
-          "таймер", "запусти", "поставь", "установи", "включи", "заведи",
-          "останови", "отмени", "выключи", "сбрось", "стоп", "хватит",
-          "минут", "минуты", "минуту", "секунд", "секунды", "секунду",
-        ],
-      },
-    };
-  }
-
-  // --- Диспетчер голосовых команд ---
-  dispatchAssistantAction(action) {
-    console.log("dispatchAssistantAction", action);
-    switch (action.type) {
-      case "set_timer":
-        return this.setTimer(action);
-      case "cancel_timer":
-        return this.cancelTimer();
-      default:
-        console.log("unknown action:", action.type);
+      if (cmd?.type) return cmd;
     }
   }
 
-  // --- Запуск таймера ---
-  setTimer(action) {
-    console.log("setTimer", action);
-    const duration = action.duration || 60;
-    this.setState({
-      timer: {
-        duration,
-        startedAt: Date.now(),
-      },
-    });
-  }
+  /* server_action */
+  if (event?.server_action?.type) return event.server_action;
 
-  // --- Остановка таймера вручную или голосом ---
-  cancelTimer() {
-    console.log("cancelTimer");
-    this.setState({ timer: null });
-  }
-
-  // --- Таймер истёк: звук + голосовой ответ + сброс ---
-  timerEnd() {
-    console.log("timerEnd");
-    this.playTimerSound();
-    this.sendToAssistant("timer_done", "Время вышло!");
-    this.setState({ timer: null });
-  }
-
-  // --- Отправка server_action ассистенту ---
-  sendToAssistant(actionId, value) {
-    try {
-      const data = {
-        action: {
-          action_id: actionId,
-          parameters: { value },
-        },
-      };
-      const unsubscribe = this.assistant.sendData(data, (resp) => {
-        console.log("sendData callback:", resp);
-        unsubscribe();
-      });
-    } catch (e) {
-      console.warn("sendToAssistant error:", e);
-    }
-  }
-
-  // --- Звуковой сигнал через Web Audio API (без внешних файлов) ---
-  playTimerSound() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const beep = (freq, start, dur) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = freq;
-        osc.type = "sine";
-        gain.gain.setValueAtTime(0.4, start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
-        osc.start(start);
-        osc.stop(start + dur);
-      };
-      // Три коротких сигнала: бип — бип — бииип
-      const t = ctx.currentTime;
-      beep(880, t, 0.2);
-      beep(880, t + 0.3, 0.2);
-      beep(1100, t + 0.6, 0.5);
-    } catch (e) {
-      console.warn("playTimerSound error:", e);
-    }
-  }
-
-  render() {
-    return (
-      <div className="app">
-        <Timer
-          timer={this.state.timer}
-          onTimerEnd={() => this.timerEnd()}
-          onTimerCancel={() => this.cancelTimer()}
-          onTimerStart={(seconds) => this.setTimer({ duration: seconds })}
-        />
-      </div>
-    );
-  }
+  return null;
 }
+
+function App() {
+  const [duration, setDuration] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const assistantRef = useRef(null);
+
+  /* Отправка server_action обратно в сценарий */
+  const sendAction = useCallback((actionId) => {
+    assistantRef.current?.sendData?.({
+      action: { action_id: actionId },
+    });
+  }, []);
+
+  /* Обработка всех событий от ассистента */
+  const handleAssistantData = useCallback((event) => {
+    const action = extractAction(event);
+    if (!action?.type) return;
+
+    if (action.type === "set_timer") {
+      const seconds = Math.max(1, Math.round(Number(action.duration) || 60));
+      setDuration(seconds);
+      setIsActive(true);
+    }
+
+    if (action.type === "cancel_timer") {
+      setIsActive(false);
+      setDuration(0);
+    }
+  }, []);
+
+  /* Инициализация Salute Assistant — один раз */
+  useEffect(() => {
+    /**
+     * getState обязан возвращать объект с app_info,
+     * иначе SDK упадёт с ошибкой "Cannot read properties of undefined (reading 'applicationId')"
+     */
+    const getState = () => ({
+      app_info: {
+        applicationId: process.env.REACT_APP_SMARTAPP || "voice-timer",
+        appversionId: "1.0.0",
+        frontendType: "WEB_APP",
+        projectId: process.env.REACT_APP_SMARTAPP || "voice-timer",
+        systemName: "voice-timer",
+        frontendEndpoint: "",
+        frontendStateId: "",
+      },
+    });
+
+    if (process.env.NODE_ENV === "development") {
+      assistantRef.current = createSmartappDebugger({
+        token: process.env.REACT_APP_TOKEN || "",
+        initPhrase: "запусти голосовой таймер",
+        getState,
+        nativePanel: { defaultText: "Скажите команду..." },
+        appInitialData: [getState()],
+      });
+    } else {
+      assistantRef.current = createAssistant({ getState });
+    }
+
+    assistantRef.current.on("data", handleAssistantData);
+  }, [handleAssistantData]);
+
+  /* Таймер истёк — сообщаем сценарию для голосового ответа */
+  const handleFinish = useCallback(() => {
+    sendAction("timer_done");
+  }, [sendAction]);
+
+  /* Ручная остановка кнопкой */
+  const handleStop = useCallback(() => {
+    setIsActive(false);
+    setDuration(0);
+    sendAction("cancel_timer");
+  }, [sendAction]);
+
+  return (
+    <div className="app">
+      <div className="app-title">Голосовой таймер</div>
+
+      <Timer
+        duration={duration}
+        isActive={isActive}
+        onStop={handleStop}
+        onFinish={handleFinish}
+      />
+
+      {!isActive && (
+        <div className="hint">
+          Скажите: «Запусти таймер на 30 секунд»
+          <br />
+          или «Останови таймер»
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

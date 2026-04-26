@@ -3,7 +3,13 @@
     "allow": [
       "Bash(npx react-scripts:*)",
       "Bash(zip -r /Users/nastagetman/proga/todo-canvas-app/scenario-example.zip .)",
-      "Bash(zip -r /tmp/scenario-example.zip . -x '*.DS_Store')"
+      "Bash(zip -r /tmp/scenario-example.zip . -x '*.DS_Store')",
+      "Bash(ls -d \"scenario-example\"*)",
+      "Bash(python3)",
+      "Bash(ls:*)",
+      "Bash(zip -r /Users/nastagetman/proga/todo-canvas-app/scenario-import.zip . -x \".*\")",
+      "Bash(unzip -l /Users/nastagetman/proga/todo-canvas-app/scenario-import.zip)",
+      "Bash(unzip:*)"
     ]
   }
 }

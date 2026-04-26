@@ -1,0 +1,45 @@
+{
+  "intents": [
+    {
+      "path": "/set_timer",
+      "answer": "",
+      "customData": "",
+      "phrases": [
+        { "text": "запусти таймер на 30 секунд", "stagedPhraseIdx": null },
+        { "text": "поставь таймер на 5 минут", "stagedPhraseIdx": null },
+        { "text": "запусти таймер на две минуты", "stagedPhraseIdx": null },
+        { "text": "установи таймер на десять секунд", "stagedPhraseIdx": null },
+        { "text": "таймер на 90 секунд", "stagedPhraseIdx": null },
+        { "text": "поставь отсчёт на 3 минуты", "stagedPhraseIdx": null },
+        { "text": "засеки 45 секунд", "stagedPhraseIdx": null },
+        { "text": "запусти обратный отсчёт на 120 секунд", "stagedPhraseIdx": null },
+        { "text": "поставь таймер на одну минуту", "stagedPhraseIdx": null },
+        { "text": "засеки пять минут", "stagedPhraseIdx": null },
+        { "text": "таймер на полчаса", "stagedPhraseIdx": null },
+        { "text": "включи таймер на 15 секунд", "stagedPhraseIdx": null },
+        { "text": "запусти на двадцать секунд", "stagedPhraseIdx": null },
+        { "text": "отсчитай 10 минут", "stagedPhraseIdx": null },
+        { "text": "поставь на сорок секунд", "stagedPhraseIdx": null }
+      ],
+      "enabled": true
+    },
+    {
+      "path": "/cancel_timer",
+      "answer": "",
+      "customData": "",
+      "phrases": [
+        { "text": "останови таймер", "stagedPhraseIdx": null },
+        { "text": "стоп", "stagedPhraseIdx": null },
+        { "text": "прекрати отсчёт", "stagedPhraseIdx": null },
+        { "text": "отмени таймер", "stagedPhraseIdx": null },
+        { "text": "выключи таймер", "stagedPhraseIdx": null },
+        { "text": "хватит", "stagedPhraseIdx": null },
+        { "text": "остановись", "stagedPhraseIdx": null },
+        { "text": "убери таймер", "stagedPhraseIdx": null },
+        { "text": "отмена", "stagedPhraseIdx": null },
+        { "text": "прекрати", "stagedPhraseIdx": null }
+      ],
+      "enabled": true
+    }
+  ]
+}
