@@ -1,4 +1,4 @@
-/* ===== Корневой контейнер ===== */
+/* Корневой контейнер */
 .app {
   display: flex;
   flex-direction: column;
@@ -11,70 +11,49 @@
   overflow: hidden;
 }
 
-/* Декоративное свечение на фоне */
-.app::before {
-  content: "";
-  position: absolute;
-  top: -40%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-/* ===== Заголовок ===== */
-.header {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 5px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.2);
-  margin-bottom: 40px;
-  z-index: 1;
-}
-
-/* ===== Кольцо таймера ===== */
+/* Кольцо таймера */
 .timer-ring {
-  width: 260px;
-  height: 260px;
+  width: 280px;
+  height: 280px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.06);
+  border: 3px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
   z-index: 1;
-  transition: border-color 0.6s, box-shadow 0.6s;
+  transition: border-color 0.4s, box-shadow 0.4s;
 }
 
 .timer-ring.running {
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 0 80px rgba(99, 102, 241, 0.1), inset 0 0 60px rgba(99, 102, 241, 0.03);
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 60px rgba(99, 102, 241, 0.15), inset 0 0 40px rgba(99, 102, 241, 0.05);
 }
 
 .timer-ring.done {
-  border-color: rgba(239, 68, 68, 0.5);
-  box-shadow: 0 0 80px rgba(239, 68, 68, 0.15);
-  animation: glow-pulse 1.5s ease-in-out infinite alternate;
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 80px rgba(239, 68, 68, 0.2);
+  animation: glow-pulse 1.2s ease-in-out infinite alternate;
 }
 
 @keyframes glow-pulse {
-  to { box-shadow: 0 0 100px rgba(239, 68, 68, 0.25); }
+  to {
+    box-shadow: 0 0 100px rgba(239, 68, 68, 0.3);
+  }
 }
 
-/* ===== Цифры ===== */
+/* Цифры таймера */
 .digits {
-  font-size: 52px;
+  font-size: 64px;
   font-weight: 200;
-  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 4px;
-  color: rgba(255, 255, 255, 0.15);
-  transition: color 0.4s;
+  letter-spacing: 6px;
+  color: rgba(255, 255, 255, 0.2);
+  transition: color 0.3s;
   user-select: none;
+  text-align: center;
 }
 
 .digits.running {
@@ -83,117 +62,77 @@
 
 .digits.done {
   color: #ef4444;
-  animation: blink 0.7s infinite alternate;
+  animation: blink 0.6s infinite alternate;
 }
 
 @keyframes blink {
-  to { opacity: 0.3; }
+  to {
+    opacity: 0.4;
+  }
 }
 
-/* Маленькая подпись внутри кольца */
+/* Подпись состояния */
 .ring-label {
-  font-size: 11px;
-  letter-spacing: 3px;
+  font-size: 12px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.15);
-  transition: color 0.4s;
+  color: rgba(255, 255, 255, 0.2);
+  transition: color 0.3s;
+  font-weight: 500;
 }
 
 .ring-label.running {
-  color: rgba(99, 102, 241, 0.6);
+  color: rgba(99, 102, 241, 0.7);
 }
 
 .ring-label.done {
-  color: rgba(239, 68, 68, 0.7);
+  color: rgba(239, 68, 68, 0.8);
 }
 
-/* ===== Уведомление «Время истекло» ===== */
+/* Уведомление об истечении времени */
 .alert-text {
-  margin-top: 24px;
-  height: 28px;
-  font-size: 18px;
+  margin-top: 32px;
+  height: 32px;
+  font-size: 20px;
   font-weight: 600;
   color: #ef4444;
   letter-spacing: 1px;
   z-index: 1;
 }
 
-/* ===== Кнопки быстрого запуска ===== */
-.presets {
-  display: flex;
-  gap: 10px;
-  margin-top: 32px;
-  flex-wrap: wrap;
-  justify-content: center;
-  z-index: 1;
-}
-
-.preset-btn {
-  padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.preset-btn:hover {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.4);
-  color: #ffffff;
-}
-
-.preset-btn:active {
-  transform: scale(0.95);
-}
-
-/* ===== Кнопка СТОП ===== */
+/* Кнопка СТОП */
 .stop-btn {
-  margin-top: 24px;
-  width: 160px;
-  height: 48px;
+  margin-top: 36px;
+  width: 180px;
+  height: 56px;
   border: none;
-  border-radius: 24px;
-  font-size: 15px;
+  border-radius: 28px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: all 0.2s;
   z-index: 1;
   font-family: inherit;
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: #fff;
-  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 4px 24px rgba(239, 68, 68, 0.3);
 }
 
 .stop-btn:hover:not(:disabled) {
-  box-shadow: 0 6px 28px rgba(239, 68, 68, 0.4);
-  transform: translateY(-1px);
+  box-shadow: 0 6px 32px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
 }
 
 .stop-btn:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .stop-btn:disabled {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.15);
   box-shadow: none;
   cursor: not-allowed;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* ===== Подсказка ===== */
-.hint {
-  margin-top: 32px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.18);
-  text-align: center;
-  line-height: 2;
-  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }

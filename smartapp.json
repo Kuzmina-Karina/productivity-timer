@@ -1,0 +1,152 @@
+{
+  "smart_app_data": {
+    "version": "2.0",
+    "initializers": [
+      {
+        "type": "dialog",
+        "name": "smartapp_initialize"
+      }
+    ],
+    "scenarios": [
+      {
+        "id": "timer_main",
+        "description": "Главный сценарий таймера",
+        "intents": [
+          {
+            "id": "set_timer_seconds",
+            "triggers": [
+              "запусти таймер на {number} секунд",
+              "включи таймер на {number} секунд",
+              "установи таймер {number} секунд",
+              "таймер {number} сек",
+              "на {number} секунд"
+            ],
+            "slots": [
+              {
+                "name": "number",
+                "type": "sys.number",
+                "required": true
+              }
+            ],
+            "responses": [
+              {
+                "text": "Таймер запущен на {number} секунд",
+                "voice": "Таймер запущен на {number} секунд"
+              }
+            ],
+            "action": {
+              "type": "set_timer",
+              "duration": "{number}"
+            }
+          },
+          {
+            "id": "set_timer_minutes",
+            "triggers": [
+              "запусти таймер на {number} минут",
+              "запусти таймер на {number} минуты",
+              "включи таймер на {number} минут",
+              "установи таймер на {number} минут",
+              "таймер на {number} минут",
+              "на {number} минут"
+            ],
+            "slots": [
+              {
+                "name": "number",
+                "type": "sys.number",
+                "required": true
+              }
+            ],
+            "responses": [
+              {
+                "text": "Таймер запущен на {number} минут",
+                "voice": "Таймер запущен на {number} минут"
+              }
+            ],
+            "action": {
+              "type": "set_timer",
+              "duration": "{number * 60}"
+            }
+          },
+          {
+            "id": "set_timer_words_minutes",
+            "triggers": [
+              "запусти таймер на одну минуту",
+              "запусти таймер на две минуты",
+              "запусти таймер на три минуты",
+              "запусти таймер на четыре минуты",
+              "запусти таймер на пять минут",
+              "запусти таймер на десять минут"
+            ],
+            "slots": [],
+            "responses": [
+              {
+                "text": "Таймер запущен",
+                "voice": "Таймер запущен"
+              }
+            ],
+            "action": {
+              "type": "set_timer",
+              "duration": "{extractMinutesFromWords(text)}"
+            }
+          },
+          {
+            "id": "cancel_timer",
+            "triggers": [
+              "останови таймер",
+              "стоп",
+              "прекрати",
+              "выключи таймер",
+              "отмени таймер",
+              "отключи таймер"
+            ],
+            "slots": [],
+            "responses": [
+              {
+                "text": "Таймер остановлен",
+                "voice": "Таймер остановлен"
+              }
+            ],
+            "action": {
+              "type": "stop_timer"
+            }
+          }
+        ]
+      }
+    ],
+    "nlu": {
+      "entities": [
+        {
+          "name": "timer_command",
+          "values": [
+            "запусти",
+            "включи",
+            "установи",
+            "таймер"
+          ]
+        },
+        {
+          "name": "timer_duration_unit",
+          "values": [
+            "секунд",
+            "секунды",
+            "сек",
+            "минут",
+            "минуты",
+            "мин"
+          ]
+        },
+        {
+          "name": "stop_command",
+          "values": [
+            "останови",
+            "стоп",
+            "прекрати",
+            "выключи",
+            "отмени",
+            "отключи"
+          ]
+        }
+      ]
+    }
+  }
+}
