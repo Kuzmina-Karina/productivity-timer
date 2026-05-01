@@ -21,9 +21,37 @@ const getState = () => ({
 
 let assistant = null;
 
+// Универсально извлекаем команду от сценария из разных форматов события SDK.
+function extractCommand(event) {
+  if (!event || typeof event !== "object") {
+    return null;
+  }
+
+  const variants = [
+    event.smart_app_data,
+    event.action?.smart_app_data,
+    event.action,
+    event.server_action,
+    event.command,
+    event.payload?.smart_app_data,
+    event.payload?.action,
+    event.items?.[0]?.command,
+    event.items?.[0]?.smart_app_data,
+  ];
+
+  for (const item of variants) {
+    if (item && typeof item === "object" && item.type) {
+      return item;
+    }
+  }
+
+  return null;
+}
+
 function App() {
   const [timerActive, setTimerActive] = useState(false);
   const [timerDuration, setTimerDuration] = useState(0);
+  const [statusText, setStatusText] = useState("Готов к команде");
   const assistantInitialized = useRef(false);
 
   // Инициализация ассистента для работы со сценарием SmartApp Code
@@ -41,26 +69,24 @@ function App() {
       assistant.on("data", (event) => {
         console.log("📥 Событие от сценария:", event);
 
-        const smartAppData =
-          event?.smart_app_data ||
-          event?.action ||
-          event?.server_action ||
-          event?.items?.[0]?.command;
+        const command = extractCommand(event);
 
-        if (smartAppData?.type === "set_timer") {
-          // Запуск таймера от сценария
-          const duration = Number(smartAppData.duration) || 60;
+        if (command?.type === "set_timer") {
+          // Запускаем таймер по команде сценария.
+          const duration = Math.max(1, Number(command.duration) || 60);
           console.log(`✅ Запуск таймера: ${duration} сек`);
           setTimerDuration(duration);
           setTimerActive(true);
+          setStatusText(`Таймер запущен на ${duration} сек.`);
         } else if (
-          smartAppData?.type === "cancel_timer" ||
-          smartAppData?.type === "stop_timer"
+          command?.type === "cancel_timer" ||
+          command?.type === "stop_timer"
         ) {
-          // Остановка таймера от сценария
+          // Останавливаем таймер по голосовой команде.
           console.log(`🛑 Остановка таймера`);
           setTimerActive(false);
           setTimerDuration(0);
+          setStatusText("Таймер остановлен");
         }
       });
 
@@ -84,12 +110,15 @@ function App() {
   const handleTimerFinish = () => {
     console.log("🔔 Таймер завершился");
     setTimerActive(false);
+    setStatusText("Время истекло!");
     try {
-      // Отправляем событие сценарию что таймер завершился
+      // Отправляем событие сценарию, чтобы ассистент озвучил завершение.
       assistant?.sendData?.({
         action: {
           action_id: "timer_finished",
-          parameters: { value: "done" },
+          parameters: {
+            value: "done",
+          },
         },
       });
     } catch (e) {
@@ -101,8 +130,10 @@ function App() {
   const handleStop = () => {
     console.log("🛑 Стоп от пользователя");
     setTimerActive(false);
+    setTimerDuration(0);
+    setStatusText("Таймер остановлен");
     try {
-      // Отправляем команду сценарию
+      // Кнопка СТОП дублирует голосовую команду остановки.
       assistant?.sendData?.({
         action: {
           action_id: "cancel_timer",
@@ -121,6 +152,7 @@ function App() {
         onFinish={handleTimerFinish}
         onStop={handleStop}
       />
+      <div className="status-text">{statusText}</div>
     </div>
   );
 }
