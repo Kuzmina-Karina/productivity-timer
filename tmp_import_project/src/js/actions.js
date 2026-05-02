@@ -37,12 +37,17 @@ var tens = {
     "шестьдесят": 60
 };
 
+/* Без \\b: в Rhino/ES5 границы слов для кириллицы часто неверны — «сек» не матчился, скрипт мог падать. */
 function isMinuteWord(word) {
-    return /^мин(ута|уты|ут|)\b/.test(word) || /^мин\b/.test(word);
+    if (!word) return false;
+    if (word === "мин") return true;
+    return word.indexOf("минут") === 0;
 }
 
 function isSecondWord(word) {
-    return /^сек(унда|унды|унд|)\b/.test(word) || /^сек\b/.test(word);
+    if (!word) return false;
+    if (word === "сек") return true;
+    return word.indexOf("секунд") === 0;
 }
 
 function wordsToNumber(tokens) {
@@ -94,46 +99,57 @@ function extractNearUnit(words, index) {
 }
 
 function parseTimerDuration(text) {
-    var t = normalize(text);
-    if (!t) return 60;
+    try {
+        var t = normalize(text);
+        if (!t) return 60;
 
-    if (t.indexOf("полчаса") !== -1) return 1800;
-    if (t.indexOf("полторы минуты") !== -1 || t.indexOf("полтора минуты") !== -1) return 90;
+        if (t.indexOf("полчаса") !== -1) return 1800;
+        if (t.indexOf("полторы минуты") !== -1 || t.indexOf("полтора минуты") !== -1) return 90;
 
-    var words = t.split(" ");
-    var minutes = 0;
-    var seconds = 0;
+        var words = t.split(" ");
+        var minutes = 0;
+        var seconds = 0;
+        var i;
+        var minuteValue;
+        var secondValue;
 
-    for (var i = 0; i < words.length; i += 1) {
-        if (isMinuteWord(words[i])) {
-            var minuteValue = extractNearUnit(words, i - 1);
-            if (minuteValue !== null && minuteValue !== undefined) {
-                minutes = minuteValue;
+        for (i = 0; i < words.length; i += 1) {
+            if (isMinuteWord(words[i])) {
+                minuteValue = extractNearUnit(words, i - 1);
+                if (minuteValue !== null && minuteValue !== undefined) {
+                    minutes = minuteValue;
+                }
+            }
+            if (isSecondWord(words[i])) {
+                secondValue = extractNearUnit(words, i - 1);
+                if (secondValue !== null && secondValue !== undefined) {
+                    seconds = secondValue;
+                }
             }
         }
-        if (isSecondWord(words[i])) {
-            var secondValue = extractNearUnit(words, i - 1);
-            if (secondValue !== null && secondValue !== undefined) {
-                seconds = secondValue;
-            }
+
+        if (minutes > 0 || seconds > 0) {
+            return minutes * 60 + seconds;
         }
-    }
 
-    if (minutes > 0 || seconds > 0) {
-        return minutes * 60 + seconds;
-    }
+        var numeric = t.match(/\d+/);
+        if (numeric) {
+            return Math.max(1, parseInt(numeric[0], 10));
+        }
 
-    var numeric = t.match(/\d+/);
-    if (numeric) {
-        return Math.max(1, parseInt(numeric[0], 10));
-    }
+        var wordValue = wordsToNumber(words);
+        if (wordValue) {
+            return t.indexOf("мин") !== -1 ? wordValue * 60 : wordValue;
+        }
 
-    var wordValue = wordsToNumber(words);
-    if (wordValue) {
-        return t.indexOf("мин") !== -1 ? wordValue * 60 : wordValue;
+        return 60;
+    } catch (e) {
+        return 60;
     }
-
-    return 60;
 }
 
-addAction("parseTimerDuration", parseTimerDuration);
+(function (root) {
+    if (typeof root !== "undefined" && root !== null) {
+        root.parseTimerDuration = parseTimerDuration;
+    }
+})(typeof global !== "undefined" ? global : (typeof globalThis !== "undefined" ? globalThis : this));

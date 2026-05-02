@@ -17,13 +17,14 @@
        *    это баг SDK v1.32 (строка 790 createAssistantDevOrigin.js):
        *    event.appInfo.applicationId вызывается без проверки на undefined.
        */
+      /* Должно совпадать с appInfo в src/App.jsx и с данными смартапа в SmartApp Studio. */
       window.appInitialData = [{
         app_info: {
-          applicationId: "voice-timer",
+          applicationId: "salute-timer-smartapp",
           appversionId: "1.0.0",
           frontendType: "WEB_APP",
-          projectId: "voice-timer",
-          systemName: "voice-timer",
+          projectId: "salute-timer-smartapp",
+          systemName: "Salute Timer",
           frontendEndpoint: "",
           frontendStateId: ""
         }

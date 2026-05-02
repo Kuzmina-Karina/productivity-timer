@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createAssistant } from "@salutejs/client";
+import { createAssistant, createSmartappDebugger } from "@salutejs/client";
 import { Timer } from "./components/Timer";
 import "./App.css";
 
@@ -19,12 +19,68 @@ const getState = () => ({
   app_info: appInfo,
 });
 
+/** На localhost без эмулятора Salute голос не поднимется — см. блок подсказки в UI. */
+function resolveAssistant(getStateFn) {
+  const token =
+    typeof process.env.REACT_APP_TOKEN === "string"
+      ? process.env.REACT_APP_TOKEN.trim()
+      : "";
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (isDev && token) {
+    return createSmartappDebugger({
+      token,
+      initPhrase:
+        process.env.REACT_APP_INIT_PHRASE?.trim() ||
+        "Запусти голосовой таймер",
+      getState: getStateFn,
+      appInitialData: [{ app_info: appInfo }],
+      nativePanel: {
+        defaultText: "Таймер на 10 секунд",
+        screenshotMode: false,
+      },
+    });
+  }
+
+  return createAssistant({ getState: getStateFn });
+}
+
 let assistant = null;
 
-// Универсально извлекаем команду от сценария из разных форматов события SDK.
+// Универсально извлекаем команду от сценария из разных форматов события SDK / ответа бэкенда.
 function extractCommand(event) {
   if (!event || typeof event !== "object") {
     return null;
+  }
+
+  /** Объект вида ответа Code: `{ type: "smart_app_data", smart_app_data: { type, duration } }`. */
+  function fromSmartAppDataReply(reply) {
+    if (
+      reply &&
+      reply.type === "smart_app_data" &&
+      reply.smart_app_data &&
+      typeof reply.smart_app_data === "object" &&
+      reply.smart_app_data.type
+    ) {
+      return reply.smart_app_data;
+    }
+    return null;
+  }
+
+  const replyArrays = [
+    event.replies,
+    event.response?.responseData?.replies,
+    event.responseData?.replies,
+    event.payload?.replies,
+  ];
+
+  for (let k = 0; k < replyArrays.length; k++) {
+    const arr = replyArrays[k];
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const cmd = fromSmartAppDataReply(arr[i]);
+      if (cmd) return cmd;
+    }
   }
 
   const variants = [
@@ -32,10 +88,12 @@ function extractCommand(event) {
     event.action?.smart_app_data,
     event.action,
     event.server_action,
+    event.command?.smart_app_data,
     event.command,
     event.payload?.smart_app_data,
     event.payload?.action,
     event.items?.[0]?.command,
+    event.items?.[0]?.command?.smart_app_data,
     event.items?.[0]?.smart_app_data,
   ];
 
@@ -54,6 +112,13 @@ function App() {
   const [statusText, setStatusText] = useState("Готов к команде");
   const assistantInitialized = useRef(false);
 
+  const devToken =
+    typeof process.env.REACT_APP_TOKEN === "string"
+      ? process.env.REACT_APP_TOKEN.trim()
+      : "";
+  const showDevVoiceHint =
+    process.env.NODE_ENV === "development" && !devToken;
+
   // Инициализация ассистента для работы со сценарием SmartApp Code
   useEffect(() => {
     if (assistantInitialized.current) {
@@ -62,8 +127,8 @@ function App() {
     assistantInitialized.current = true;
 
     try {
-      // Используем createAssistant - он взаимодействует со сценарием на бэкенде
-      assistant = createAssistant({ getState });
+      // В проде — хост Салюта; в dev на localhost — панель эмулятора при REACT_APP_TOKEN
+      assistant = resolveAssistant(getState);
 
       // Получаем команды от сценария
       assistant.on("data", (event) => {
@@ -144,6 +209,12 @@ function App() {
     }
   };
 
+  const runLocalDemoSeconds = (sec) => {
+    setTimerDuration(sec);
+    setTimerActive(true);
+    setStatusText(`Локальный тест UI: ${sec} сек (сценарий не вызывается)`);
+  };
+
   return (
     <div className="app">
       <Timer
@@ -153,6 +224,31 @@ function App() {
         onStop={handleStop}
       />
       <div className="status-text">{statusText}</div>
+
+      {showDevVoiceHint && (
+        <div className="dev-assistant-hint" role="note">
+          <p>
+            <strong>Голоса здесь не будет:</strong> в браузере на localhost нет
+            «зелёной» панели Салюта. Возьмите токен эмулятора (кабинет разработчика →
+            SmartApp → вкладка «Эмулятор» → ключ), сохраните в{" "}
+            <code>.env</code>: <code>REACT_APP_TOKEN=…</code> и перезапустите{" "}
+            <code>npm start</code> — появится отладочная панель с вводом/микрофоном.
+          </p>
+          <p>
+            В продакшене (Canvas на платформе) используется{" "}
+            <code>createAssistant</code> без токена; голос — на устройстве с Салютом.
+          </p>
+          <div className="dev-demo-row">
+            <span>Проверка только интерфейса:</span>
+            <button type="button" className="dev-demo-btn" onClick={() => runLocalDemoSeconds(5)}>
+              5 сек
+            </button>
+            <button type="button" className="dev-demo-btn" onClick={() => runLocalDemoSeconds(30)}>
+              30 сек
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

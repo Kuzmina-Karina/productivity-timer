@@ -1,11 +1,5 @@
 name: voice_timer
 language: ru
+entryPoint: entryPoint.sc
 nlp:
   type: caila
-injector:
-  - type: jsInject
-    files:
-      - src/js/actions.js
-entryPoint:
-  - type: sc
-    file: src/entryPoint.sc
