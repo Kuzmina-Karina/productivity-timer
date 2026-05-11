@@ -1,6 +1,7 @@
 {
-  "name": "salute-demo-app",
-  "version": "0.1.0",
+  "name": "salute-voice-timer",
+  "version": "1.0.0",
+  "description": "Голосовой контроллер таймеров для Sber Salute",
   "private": true,
   "dependencies": {
     "@salutejs/client": "=1.32.0",
@@ -14,7 +15,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "styled-components": "^6.1.8",
     "typescript": "=5.4.5",
     "web-vitals": "^3.5.2"
   },
