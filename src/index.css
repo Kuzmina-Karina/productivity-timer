@@ -1,10 +1,211 @@
+/* --- БАЗОВЫЕ НАСТРОЙКИ --- */
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Roboto', 'Arial', sans-serif;
 }
 
-body {
-  margin: 0;
-  overflow: hidden; /* Предотвращаем скролл на мобилках */
-  background: #0f172a;
+/* --- ГЛУБОКИЙ ФОН С ГРАДИЕНТАМИ СБЕРА --- */
+.app-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #0c1a13; 
+  background-image: 
+    radial-gradient(at 15% 15%, #0c2018 0%, transparent 40%),
+    radial-gradient(at 85% 85%, #0a0a20 0%, transparent 40%),
+    radial-gradient(at 85% 15%, #2a1010 0%, transparent 30%);
+  color: #ffffff;
+  padding: 20px;
+  position: relative;
 }
+
+/* --- МОДЕРНИЗИРОВАННАЯ КАРТОЧКА (МАТОВОЕ СТЕКЛО) --- */
+.card {
+  background-color: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 40px;
+  width: 100%;
+  max-width: 550px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- ЗАГОЛОВОК --- */
+.title {
+  font-size: 28px;
+  margin-bottom: 15px;
+  color: #44cc44;
+}
+
+.status-container {
+  min-height: 24px;
+  margin-bottom: 25px;
+}
+
+.mode-label {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- КРУГЛЫЙ ЦИФЕРБЛАТ С ПОМИДОРОМ --- */
+.timer-wrapper {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  margin: 0 auto 30px auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.progress-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(-90deg); /* Чтобы кольцо начинало заполняться с 12 часов */
+  z-index: 2;
+}
+
+.progress-ring__circle {
+  stroke-dasharray: 691.15; /* Длина окружности */
+  stroke-dashoffset: 691.15; /* Начало - пустое кольцо */
+  stroke-linecap: round; /* Закругленные концы линии */
+  transition: stroke-dashoffset 1s linear; /* Плавное заполнение */
+}
+
+.tomato-img {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  object-fit: contain;
+  opacity: 0.2;
+  transform: scale(0.2);
+  transition: transform 1s linear, opacity 1s linear;
+  z-index: 1; /* Помидор на заднем плане за цифрами */
+  filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.4)); /* Легкое красное свечение */
+}
+
+/* --- ЦИФРЫ ТАЙМЕРА --- */
+.timer-display {
+  font-size: 56px;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9); /* Тень, чтобы цифры читались на помидоре */
+  z-index: 3; /* Цифры на самом верху */
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- ТОНКАЯ АНИМАЦИЯ ПУЛЬСАЦИИ ПРИ РАБОТЕ --- */
+.pulse {
+  animation: soft-pulse 3s infinite;
+}
+
+@keyframes soft-pulse {
+  0% { text-shadow: 0 0 10px rgba(68, 204, 68, 0.3); } /* Зеленое свечение */
+  50% { text-shadow: 0 0 25px rgba(68, 204, 68, 0.6); } /* Сильнее */
+  100% { text-shadow: 0 0 10px rgba(68, 204, 68, 0.3); } /* Зеленое свечение */
+}
+
+/* --- ОБНОВЛЕННЫЕ КНОПКИ УПРАВЛЕНИЯ (КОНТУРНЫЕ) --- */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 35px;
+}
+
+.btn {
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: bold;
+  border: 2px solid; /* Контур */
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Сбербанковский зеленый для Старт */
+.btn-start {
+  background-color: transparent;
+  border-color: #44cc44;
+  color: #44cc44;
+}
+.btn-start:hover:not(:disabled) {
+  background-color: #44cc44;
+  color: white;
+}
+
+/* Белый для Паузы */
+.btn-pause {
+  background-color: transparent;
+  border-color: #ffffff;
+  color: #ffffff;
+}
+.btn-pause:hover:not(:disabled) {
+  background-color: #ffffff;
+  color: black;
+}
+
+/* Красный для Сброса */
+.btn-reset {
+  background-color: transparent;
+  border-color: #ff4444;
+  color: #ff4444;
+}
+.btn-reset:hover:not(:disabled) {
+  background-color: #ff4444;
+  color: white;
+}
+
+/* --- РУЧНОЕ УПРАВЛЕНИЕ И ПРЕДУСТАНОВКИ --- */
+.divider {
+  border: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 25px 0;
+}
+
+.manual-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Тонкие, контурные кнопки предустановок */
+.btn-preset {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.btn-preset:hover {
+  border-color: #44cc44;
+  color: #44cc44;
+}
+

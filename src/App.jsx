@@ -11,10 +11,12 @@ window.appInitialData = [
   }
 ];
 
+// ВРЕМЕННО: Я установил время в Помодоро Лайт по 10 секунд (работы и перерыва)
+// для быстрого тестирования. Потом я верну тебе нормальные 25 минут.
 const MODES = {
-  pomodoro_light: { label: 'Помодоро Лайт', seconds: 1500 },
-  pomodoro_medium: { label: 'Помодоро Медиум', seconds: 2700 },
-  pomodoro_hard: { label: 'Помодоро Хард', seconds: 3600 },
+  pomodoro_light: { label: 'Помодоро Лайт', seconds: 10, breakSeconds: 3, isCycle: true },
+  pomodoro_medium: { label: 'Помодоро Медиум', seconds: 2700, breakSeconds: 600, isCycle: true },
+  pomodoro_hard: { label: 'Помодоро Хард', seconds: 3600, breakSeconds: 900, isCycle: true },
   exercise: { label: 'Зарядка', seconds: 1200 },
   gym: { label: 'Зал', seconds: 120 },
 };
@@ -23,20 +25,6 @@ const STATUS = {
   IDLE: 'idle',
   RUNNING: 'running',
   PAUSED: 'paused',
-};
-
-const parseDuration = (phrase) => {
-  if (!phrase) return 60;
-  const text = phrase.toLowerCase();
-  const match = text.match(/\d+/);
-  
-  if (match) {
-    let val = parseInt(match[0], 10);
-    if (text.includes('минут')) return val * 60;
-    if (text.includes('час')) return val * 3600;
-    return val;
-  }
-  return 60;
 };
 
 const initializeAssistant = (getState) => {
@@ -65,11 +53,21 @@ export class App extends React.Component {
       remainingSeconds: 0,
       status: STATUS.IDLE,
       currentMode: '',
-      customInput: '',
+      isCycleMode: false, // Флаг, что мы в Pomodoro-цикле
+      currentPhase: 'work', // work или break
+      baseModeKey: '', // Сохраняем ключ режима для циклов
     };
 
     this.timerInterval = null;
-    this.alarmTimeout = null; // Таймер для выключения звука через 3 сек
+    this.alarmTimeout = null; 
+    
+    // Ссылки для анимации круга и помидора
+    this.circleRef = React.createRef();
+    this.tomatoRef = React.createRef();
+    this.totalSeconds = 0; 
+    
+    // Длина окружности (2 * Math.PI * radius). При радиусе 110 это ~691.15
+    this.circumference = 691.15; 
     
     // Электронный классический звук будильника
     this.alarm = new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg');
@@ -79,15 +77,9 @@ export class App extends React.Component {
     this.assistant.on('data', (event) => {
       console.log(`assistant.on(data)`, event);
       
-      if (event.type === 'character') {
-        console.log(`assistant.on(data): character: "${event?.character?.id}"`);
-      } else if (event.type === 'insets') {
-        console.log(`assistant.on(data): insets`);
-      } else {
-        const action = event.smart_app_data || event.action;
-        if (action) {
-          this.dispatchAssistantAction(action);
-        }
+      const action = event.smart_app_data || event.action;
+      if (action) {
+        this.dispatchAssistantAction(action);
       }
     });
 
@@ -109,11 +101,11 @@ export class App extends React.Component {
     switch (action.type) {
       case 'start_mode':
         const mode = MODES[action.mode];
-        if (mode) this.startTimer(mode.seconds, mode.label);
-        break;
-      case 'start_custom_timer':
-        const sec = parseDuration(action.phrase);
-        this.startTimer(sec, 'Свой таймер');
+        if (mode) {
+          // Если это цикличный Pomodoro, лейбл будет другим
+          const label = mode.isCycle ? `${mode.label}: Работа` : mode.label;
+          this.startTimer(mode.seconds, label, action.mode);
+        }
         break;
       case 'stop_timer':
         this.stopTimer();
@@ -131,24 +123,63 @@ export class App extends React.Component {
 
   // Вспомогательная функция для полной остановки звука
   stopAlarmSound = () => {
-    this.alarm.pause();
-    this.alarm.currentTime = 0;
-    this.alarm.loop = false;
-    if (this.alarmTimeout) {
-      clearTimeout(this.alarmTimeout);
-      this.alarmTimeout = null;
-    }
+    try {
+      this.alarm.pause();
+      this.alarm.currentTime = 0;
+      this.alarm.loop = false;
+      if (this.alarmTimeout) {
+        clearTimeout(this.alarmTimeout);
+        this.alarmTimeout = null;
+      }
+    } catch (e) {}
   };
 
-  startTimer = (seconds, label) => {
+  startTimer = (seconds, label, modeKey = null) => {
     this.stopAlarmSound();
-    this.setState({ remainingSeconds: seconds, currentMode: label, status: STATUS.RUNNING });
+    this.totalSeconds = seconds;
+
+    const mode = modeKey ? MODES[modeKey] : null;
+    const isCycle = mode?.isCycle || false;
+
+    // Сброс кольца (пустое) и помидора (маленький)
+    if (this.circleRef.current) {
+      this.circleRef.current.style.strokeDashoffset = this.circumference;
+    }
+    if (this.tomatoRef.current) {
+      this.tomatoRef.current.style.transform = 'scale(0.2)';
+      this.tomatoRef.current.style.opacity = '0.2';
+    }
+
+    this.setState({ 
+      remainingSeconds: seconds, 
+      currentMode: label, 
+      status: STATUS.RUNNING,
+      isCycleMode: isCycle,
+      currentPhase: 'work', // Всегда начинаем с работы
+      baseModeKey: modeKey || '' // Сохраняем ключ для циклов
+    });
     this.startInterval();
   };
 
   stopTimer = () => {
     this.stopAlarmSound();
-    this.setState({ remainingSeconds: 0, currentMode: '', status: STATUS.IDLE });
+    // ✅ ИСПРАВЛЕНО: Сброс кольца прогресс-бара к началу (пустое)
+    if (this.circleRef.current) {
+      this.circleRef.current.style.strokeDashoffset = this.circumference;
+    }
+    // ✅ Убеждаемся, что помидор тоже сбрасывается
+    if (this.tomatoRef.current) {
+      this.tomatoRef.current.style.transform = 'scale(0.2)';
+      this.tomatoRef.current.style.opacity = '0.2';
+    }
+    this.setState({ 
+      remainingSeconds: 0, 
+      currentMode: '', 
+      status: STATUS.IDLE,
+      isCycleMode: false,
+      currentPhase: 'work',
+      baseModeKey: '' 
+    });
     this.stopInterval();
   };
 
@@ -171,16 +202,99 @@ export class App extends React.Component {
         if (prevState.remainingSeconds <= 1) {
           this.stopInterval();
           
-          // ЗАПУСКАЕМ ЗВУК РОВНО НА 3 СЕКУНДЫ
+          // Полностью заполняем в конце
+          if (this.circleRef.current) {
+            this.circleRef.current.style.strokeDashoffset = 0;
+          }
+          if (this.tomatoRef.current) {
+            this.tomatoRef.current.style.transform = 'scale(1)';
+            this.tomatoRef.current.style.opacity = '1';
+          }
+
           this.alarm.loop = true; // Зацикливаем
-          this.alarm.play();
+          try {
+            const playPromise = this.alarm.play();
+            if (playPromise !== undefined) {
+               playPromise.catch(() => console.warn("Звук заблокирован (нужен клик)"));
+            }
+          } catch(e) {}
           
+          // Рингтон играет 3 секунды, затем выключается
           this.alarmTimeout = setTimeout(() => {
-            this.stopAlarmSound(); // Вырубаем через 3 сек
+            this.stopAlarmSound(); 
           }, 3000); 
 
+          // ✅ НОВАЯ ЛОГИКА: Переход фаз Pomodoro (РАБОТА <-> ПЕРЕРЫВ)
+          if (prevState.isCycleMode && prevState.baseModeKey) {
+            const mode = MODES[prevState.baseModeKey];
+            const nextPhase = prevState.currentPhase === 'work' ? 'break' : 'work';
+            const nextSeconds = nextPhase === 'work' ? mode.seconds : mode.breakSeconds;
+            const phaseLabel = nextPhase === 'work' ? 'Работа' : 'Перерыв';
+            const nextLabel = `${mode.label}: ${phaseLabel}`;
+            
+            // ✅ ГОЛОСОВОЕ ОБЪЯВЛЕНИЕ ЧЕРЕЗ СЦЕНАРИЙ (с родным сигналом)
+            if (this.assistant) {
+              let actionId = null;
+              if (nextPhase === 'work') {
+                actionId = 'announcement_work_start'; // Перерыв закончился, время работать
+              } else if (nextPhase === 'break') {
+                actionId = 'announcement_break_start'; // Время перерыва
+              }
+              
+              if (actionId) {
+                // Это отправит SERVER_ACTION, который мы перехватим в timer.sc
+                this.assistant.sendData({
+                  type: "server_action",
+                  message_name: "SERVER_ACTION",
+                  server_action: {
+                    action_id: actionId
+                  }
+                });
+              }
+            }
+            
+            // Подготавливаем таймер и графику к следующему циклу
+            this.totalSeconds = nextSeconds;
+            if (this.circleRef.current) {
+              this.circleRef.current.style.strokeDashoffset = this.circumference;
+            }
+            if (this.tomatoRef.current) {
+              this.tomatoRef.current.style.transform = 'scale(0.2)';
+              this.tomatoRef.current.style.opacity = '0.2';
+            }
+
+            // Устанавливаем данные для следующего цикла и запускаем
+            return {
+              remainingSeconds: nextSeconds,
+              currentMode: nextLabel,
+              currentPhase: nextPhase,
+              status: STATUS.RUNNING
+            };
+          }
+
+          // Если это обычный таймер, просто останавливаемся
           return { remainingSeconds: 0, status: STATUS.IDLE };
         }
+
+        // Анимация кольца и помидора во время работы таймера
+        if (this.totalSeconds > 0) {
+          const progressedSeconds = this.totalSeconds - (prevState.remainingSeconds - 1);
+          const progress = progressedSeconds / this.totalSeconds; // от 0 до 1
+          
+          // Круг заполняется (от полного circumference до 0)
+          if (this.circleRef.current) {
+            const offset = this.circumference - (progress * this.circumference);
+            this.circleRef.current.style.strokeDashoffset = offset;
+          }
+
+          // Помидор растет от 0.2 до 1
+          if (this.tomatoRef.current) {
+            const growthFactor = Math.min(1, 0.2 + progress * 0.8);
+            this.tomatoRef.current.style.transform = `scale(${growthFactor})`;
+            this.tomatoRef.current.style.opacity = `${growthFactor}`;
+          }
+        }
+
         return { remainingSeconds: prevState.remainingSeconds - 1 };
       });
     }, 1000);
@@ -205,7 +319,7 @@ export class App extends React.Component {
   };
 
   render() {
-    const { remainingSeconds, status, currentMode, customInput } = this.state;
+    const { remainingSeconds, status, currentMode } = this.state;
 
     return (
       <main className="app-container">
@@ -216,8 +330,33 @@ export class App extends React.Component {
              {currentMode ? <p className="mode-label">{currentMode}</p> : <p className="mode-label">Режим не выбран</p>}
           </div>
           
-          <div className={`timer-display ${status === STATUS.RUNNING ? 'pulse' : ''}`}>
-            {this.formatTime(remainingSeconds)}
+          {/* НОВЫЙ КРУГЛЫЙ ЦИФЕРБЛАТ С ПОМИДОРОМ */}
+          <div className="timer-wrapper">
+            <svg className="progress-ring" width="240" height="240">
+              {/* Фоновое тусклое кольцо */}
+              <circle stroke="rgba(255, 255, 255, 0.1)" strokeWidth="8" fill="transparent" r="110" cx="120" cy="120" />
+              {/* Активное яркое кольцо */}
+              <circle 
+                className="progress-ring__circle" 
+                stroke="#00ff7f" 
+                strokeWidth="8" 
+                fill="transparent" 
+                r="110" cx="120" cy="120" 
+                ref={this.circleRef} 
+              />
+            </svg>
+            
+            {/* Стилизованный помидор из image_7.png */}
+            <img 
+              src="https://cdn-icons-png.flaticon.com/512/1202/1202125.png" 
+              alt="Помидор" 
+              className="tomato-img" 
+              ref={this.tomatoRef} 
+            />
+
+            <div className={`timer-display ${status === STATUS.RUNNING ? 'pulse' : ''}`}>
+              {this.formatTime(remainingSeconds)}
+            </div>
           </div>
 
           <div className="controls">
@@ -240,30 +379,21 @@ export class App extends React.Component {
           <div className="manual-controls">
             <div className="preset-grid">
               {Object.entries(MODES).map(([key, mode]) => (
-                <button key={key} className="btn-preset" onClick={() => this.startTimer(mode.seconds, mode.label)}>
+                <button 
+                  key={key} 
+                  className="btn-preset" 
+                  onClick={() => {
+                    // Явная логика запуска циклов Pomodoro
+                    const label = mode.isCycle ? `${mode.label}: Работа` : mode.label;
+                    this.startTimer(mode.seconds, label, key);
+                  }}
+                >
                   {mode.label}
                 </button>
               ))}
             </div>
 
-            <div className="custom-box">
-              <input
-                type="number"
-                value={customInput}
-                onChange={(e) => this.setState({ customInput: e.target.value })}
-                placeholder="Секунды"
-                className="custom-input"
-              />
-              <button 
-                className="btn-custom-start" 
-                onClick={() => {
-                  const secs = parseInt(customInput);
-                  if (secs > 0) this.startTimer(secs, 'Свой таймер');
-                }}
-              >
-                OK
-              </button>
-            </div>
+            {/* ✅ УБРАНО: Поле ручного ввода секунд и кнопка "OK" */}
           </div>
         </div>
       </main>
