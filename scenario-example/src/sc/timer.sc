@@ -1,169 +1,77 @@
 theme: /
 
-    state: TimerStartMode
-        # Запуск режимов Помодоро и упражнений
+    state: TimerStartLight
         q!: (~запусти|~включи|~старт|~поставь) (~помодоро лайт|лайт помодоро)
+        q!: * помодоро лайт *
+        q!: * лайт помодоро *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "start_mode",
-                                mode: "pomodoro_light"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "start_mode", mode: "pomodoro_light" } } }] } });
         a: Запускаю Помодоро Лайт.
 
+    state: TimerStartMedium
         q!: (~запусти|~включи|~старт|~поставь) (~помодоро медиум|медиум помодоро)
+        q!: * помодоро медиум *
+        q!: * медиум помодоро *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "start_mode",
-                                mode: "pomodoro_medium"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "start_mode", mode: "pomodoro_medium" } } }] } });
         a: Запускаю Помодоро Медиум.
 
+    state: TimerStartHard
         q!: (~запусти|~включи|~старт|~поставь) (~помодоро хард|хард помодоро)
+        q!: * помодоро хард *
+        q!: * хард помодоро *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "start_mode",
-                                mode: "pomodoro_hard"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "start_mode", mode: "pomodoro_hard" } } }] } });
         a: Запускаю Помодоро Хард.
 
+    state: TimerStartExercise
         q!: (~запусти|~включи|~старт|~поставь) (~зарядка|~зарядку)
+        q!: * зарядк* *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "start_mode",
-                                mode: "exercise"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "start_mode", mode: "exercise" } } }] } });
         a: Время для зарядки.
 
+    state: TimerStartGym
         q!: (~запусти|~включи|~старт|~поставь|~таймер) [на] * (~зал|для зала|в зал) *
+        q!: * зал* *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "start_mode",
-                                mode: "gym"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "start_mode", mode: "gym" } } }] } });
         a: Таймер для зала запущен.
 
-    state: TimerControl
-        # Стоп
+    state: TimerStop
         q!: (~стоп|~останови|~прекрати) [~таймер|~отсчёт|~время]
+        q!: * стоп *
+        q!: * останови* *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "stop_timer"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "stop_timer" } } }] } });
         a: Таймер остановлен.
 
-        # Пауза
+    state: TimerPause
         q!: (~пауза|~поставь на паузу|~приостанови) [~таймер|~отсчёт|~время]
+        q!: * пауз* *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "pause_timer"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "pause_timer" } } }] } });
         a: Таймер на паузе.
 
-        # Продолжить
+    state: TimerResume
         q!: (~продолжить|~продолжай|~снова) [~отсчёт|~таймер|~время]
+        q!: * продолж* *
         script:
             $response.replies = $response.replies || [];
-            $response.replies.push({
-                type: "raw",
-                body: {
-                    items: [{
-                        command: {
-                            type: "smart_app_data",
-                            smart_app_data: {
-                                type: "resume_timer"
-                            }
-                        }
-                    }]
-                }
-            });
+            $response.replies.push({ type: "raw", body: { items: [{ command: { type: "smart_app_data", smart_app_data: { type: "resume_timer" } } }] } });
         a: Продолжаю отсчёт.
-
-    # ✅ НОВЫЕ СТЕЙТЫ: Обработка объявлений о фазах из React
-    # Они играют одновременно с сигналом рингтона, который затихает через 3 сек.
-
+    
     state: TimerAnnouncementBreakStart
-        # Перехватываем сигнал 'announcement_break_start'
         event: announcement_break_start
         a: Ура! Время перерыва. Отдохни и выпей воды.
 
     state: TimerAnnouncementWorkStart
-        # Перехватываем сигнал 'announcement_work_start'
         event: announcement_work_start
         a: Время работать! Не отвлекайся.
