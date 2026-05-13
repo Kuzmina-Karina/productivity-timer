@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/productivity-timer/static/css/main.b7f58dae.css",
+    "main.js": "/productivity-timer/static/js/main.9dc24810.js",
+    "index.html": "/productivity-timer/index.html",
+    "main.b7f58dae.css.map": "/productivity-timer/static/css/main.b7f58dae.css.map",
+    "main.9dc24810.js.map": "/productivity-timer/static/js/main.9dc24810.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.b7f58dae.css",
+    "static/js/main.9dc24810.js"
+  ]
+}
