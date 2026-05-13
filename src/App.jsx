@@ -18,7 +18,7 @@ window.appInitialData = [
       appversionId: "1.0.0",
       frontendEndpoint: "None",
       frontendType: "web",
-      projectId: process.env.REACT_APP_PROJECT_ID || "pomodoro-project"
+      projectId: import.meta.REACT_APP_PROJECT_ID || "pomodoro-project"
     },
     device_id: "web-device",
     platform: "web",
@@ -57,20 +57,37 @@ const STATUS = {
 };
 
 const initializeAssistant = (getState) => {
-  if (process.env.NODE_ENV === 'development') {
-    return createSmartappDebugger({
-      token: process.env.REACT_APP_TOKEN ?? '',
-      initPhrase: `Запусти ${process.env.REACT_APP_SMARTAPP}`,
-      getState,
-      nativePanel: {
-        defaultText: 'Говорите!',
-        screenshotMode: false,
-        tabIndex: -1,
-      },
-    });
-  } else {
-    return createAssistant({ getState });
+  // Проверяем, запущены ли мы в среде Salute
+  const isSaluteEnv = typeof window !== 'undefined' && window.AssistantHost;
+  
+  if (!isSaluteEnv || import.meta.env.DEV) {
+    // Локальная разработка: используем дебаггер с фолбэком
+    try {
+      return createSmartappDebugger({
+        token: import.meta.env.VITE_TOKEN ?? '',
+        initPhrase: `Запусти ${import.meta.env.VITE_SMARTAPP ?? 'Таймер Помодоро'}`,
+        getState,
+        nativePanel: {
+          defaultText: 'Говорите!',
+          screenshotMode: false,
+          tabIndex: -1,
+        },
+      });
+    } catch (e) {
+      console.warn('SmartApp Debugger не доступен, используем mock-ассистента');
+      // Возвращаем минимальный мок-ассистент, чтобы приложение не падало
+      return {
+        on: () => {},
+        sendData: () => {},
+        sendText: () => {},
+        close: () => {},
+        ready: () => {},
+      };
+    }
   }
+  
+  // Продакшен в среде Salute
+  return createAssistant({ getState });
 };
 
 export class App extends React.Component {
